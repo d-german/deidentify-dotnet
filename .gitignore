@@ -1,0 +1,8 @@
+.idea/
+.sonarqube/
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+*.user
+*.suo
