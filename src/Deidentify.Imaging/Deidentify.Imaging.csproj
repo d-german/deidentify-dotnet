@@ -3,7 +3,7 @@
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Deidentify.Imaging</PackageId>
-    <Description>Optional imaging adapters for Deidentify.NET.</Description>
+    <Description>Image, PDF and DICOM redaction for Deidentify.NET, the .NET port of Presidio: local OCR, flattened output, and DICOM metadata plus burned-in pixel redaction.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/d-german/deidentify-dotnet</RepositoryUrl>

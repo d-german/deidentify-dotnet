@@ -1,6 +1,30 @@
 # Deidentify.NET
 
-Local, in-process sensitive data detection and de-identification for .NET 8 and .NET 10. This project is inspired by Presidio concepts but is independent and unaffiliated.
+A .NET port of [Presidio](https://github.com/data-privacy-stack/presidio), the open source PII and PHI de-identification framework Microsoft originally built in Python. It finds names, contact details, identifiers, dates and other sensitive data in text, logs, structured data, images, PDFs and DICOM files, then replaces, masks, hashes or encrypts it. It targets .NET 8 and .NET 10.
+
+## Why a port
+
+Presidio runs on Python with spaCy models, so a .NET application usually reaches it through a separate service or container and sends the sensitive text across that boundary. Deidentify.NET does the same job inside your process from one NuGet package: no Python, no Docker, no service and no network calls. The NER model ships in the package, so it works offline.
+
+Use it to clean text before you log it, store it, index it or send it to an AI model.
+
+## Where it comes from
+
+Presidio is the reference. Deidentify.NET follows its design and uses its entity names (`PERSON`, `EMAIL_ADDRESS`, `US_SSN`, `DATE_TIME` and so on), so Presidio users will recognize it:
+
+| Presidio (Python) | Deidentify.NET |
+|---|---|
+| `AnalyzerEngine` | `SensitiveDataAnalyzer` |
+| `AnonymizerEngine` | `SensitiveDataAnonymizer`, or `SensitiveDataSanitizer` to analyze and anonymize in one call |
+| Pattern recognizers with context words | Built-in validated recognizers with context boosts; implement `IEntityRecognizer` for your own |
+| spaCy or transformers NER | Bundled quantized `dslim/bert-base-NER` ONNX model |
+| Operators: replace, redact, mask, hash, encrypt, decrypt, keep, custom | The same operators; hashing is HMAC-SHA256 and encryption is authenticated AES-GCM |
+| `ImageRedactorEngine`, `DicomImageRedactorEngine` | `ImageRedactor`, `DicomRedactor` and `PdfRedactor`, in the `Deidentify.Imaging` package |
+| presidio-structured | `StructuredDataSanitizer` for JSON, CSV, dictionaries and objects |
+
+It is a reimplementation in C#, not a wrapper. No Presidio code or patterns were copied, and some behavior intentionally differs; [the parity table](docs/parity.md) lists each capability, its status and its gaps. It also adds healthcare recognizers Presidio does not ship by default, such as labelled medical record numbers and HL7 fields.
+
+Deidentify.NET is an independent project, not affiliated with or endorsed by Microsoft or the Presidio contributors.
 
 > Automated detection cannot guarantee that all PII or PHI is found and does not establish HIPAA compliance. Use a domain-specific validation corpus before production use.
 
