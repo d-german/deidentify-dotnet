@@ -137,6 +137,83 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public void Ip_recognizer_rejects_decimal_clinical_values()
+    {
+        const string text = "2.5 hours and 19.6 events/hour from 192.168.1.10";
+
+        var result = new SensitiveDataAnalyzer().Analyze(text);
+        var detection = Assert.Single(
+            result.Value.Detections.Where(item => item.EntityType == EntityType.IpAddress));
+
+        Assert.Equal("192.168.1.10", text[detection.Span.Start..detection.Span.End]);
+    }
+
+    [Fact]
+    public void Local_ner_labels_whole_words_so_no_part_of_a_name_is_left()
+    {
+        const string text = "Dr. Alastair Kowalczyk reviewed it in Poughkeepsie.";
+
+        var result = new SensitiveDataAnalyzer([LocalNerRecognizer.Create().Value]).Analyze(text);
+
+        Assert.Contains(DetectedText(text, result.Value, EntityType.Person), value => value == "Alastair Kowalczyk");
+        Assert.Contains(DetectedText(text, result.Value, EntityType.Location), value => value == "Poughkeepsie");
+    }
+
+    [Fact]
+    public void Local_ner_spans_cover_whole_words_so_allow_lists_match()
+    {
+        const string text = "Why does the BFF return 401 after upgrading OnBase? HHSS logs show IdentityServer failed.";
+        var options = AnalysisOptions.Create(new AnalysisOptionsConfiguration
+        {
+            AllowList = ["BFF", "OnBase", "HHSS", "IdentityServer"]
+        }).Value;
+
+        var result = new SensitiveDataAnalyzer([LocalNerRecognizer.Create().Value]).Analyze(text, options);
+
+        Assert.Empty(result.Value.Detections);
+    }
+
+    [Fact]
+    public void Labelled_medical_record_numbers_are_detected_without_their_labels()
+    {
+        const string text = "MRN 00012345; PatientId=MRN-778812; Medical record number: 556677; Order 12345678";
+
+        var result = new SensitiveDataAnalyzer().Analyze(text);
+
+        Assert.Equal(
+            ["00012345", "MRN-778812", "556677"],
+            DetectedText(text, result.Value, EntityType.MedicalRecordNumber));
+    }
+
+    [Fact]
+    public void Hl7_names_patient_identifiers_and_birth_dates_are_detected()
+    {
+        const string text = "PID|1||778812^^^MRN||KOWALCZYK^ALASTAIR^J||19620314|M";
+
+        var result = new SensitiveDataAnalyzer().Analyze(text);
+
+        Assert.Equal(["KOWALCZYK^ALASTAIR^J"], DetectedText(text, result.Value, EntityType.Person));
+        Assert.Equal(["778812"], DetectedText(text, result.Value, EntityType.MedicalRecordNumber));
+        Assert.Equal(["19620314"], DetectedText(text, result.Value, EntityType.DateTime));
+    }
+
+    [Fact]
+    public void Compact_dates_of_birth_need_a_label_and_a_real_date()
+    {
+        const string text = "DOB=19620314, build 20261015, DOB: 19621399";
+
+        var result = new SensitiveDataAnalyzer().Analyze(text);
+
+        Assert.Equal(["19620314"], DetectedText(text, result.Value, EntityType.DateTime));
+    }
+
+    private static List<string> DetectedText(string text, AnalysisResult result, EntityType entityType) =>
+        result.Detections
+            .Where(detection => detection.EntityType == entityType)
+            .Select(detection => text.Substring(detection.Span.Start, detection.Span.Length))
+            .ToList();
+
+    [Fact]
     public void Configuration_and_operator_boundaries_fail_closed()
     {
         Assert.True(AnalysisOptions.Create(new AnalysisOptionsConfiguration

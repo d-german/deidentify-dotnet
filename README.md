@@ -7,7 +7,8 @@ Local, in-process sensitive data detection and de-identification for .NET 8 and 
 ## Capabilities
 
 - Deterministic text detection: email, phone, SSN, ITIN, cards, IP, MAC, URL, IBAN, ABA routing, contextual bank accounts, passport/driver/medical licenses, NPI, dates, cryptocurrency wallets, allowlists, typed denylists, and opt-in secrets.
-- Bundled offline English ONNX NER for `PERSON`, `LOCATION`, and `ORGANIZATION`.
+- Healthcare identifiers: labelled medical record, patient, encounter and visit numbers (`MEDICAL_RECORD_NUMBER`), HL7 v2 `LAST^FIRST^MIDDLE` person names, HL7 PID-3 patient identifiers and PID-7 birth dates, and compact `yyyyMMdd` dates of birth after a DOB label.
+- Bundled offline English ONNX NER for `PERSON`, `LOCATION`, and `ORGANIZATION`, labelled per whole word so no part of a name is left behind.
 - Replace, redact, fixed replacement, mask, keep, custom, HMAC-SHA256, and authenticated AES-GCM encryption/decryption.
 - Strings, batches, dictionaries, selected object properties, JSON, CSV, and bounded line-oriented streams.
 - Local OCR word/box extraction, flattened image redaction, flattened PDF redaction, and DICOM PS 3.15 metadata plus burned-in pixel redaction.

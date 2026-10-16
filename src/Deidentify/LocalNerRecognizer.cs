@@ -13,6 +13,7 @@ public sealed class LocalNerRecognizer : IEntityRecognizer
     private const int LabelCount = 9;
     private const int MaximumContentTokens = 510;
     private const int MaximumChunkCharacters = 2_000;
+    private const string ContinuationPrefix = "##";
     private static readonly ConcurrentDictionary<string, Lazy<ModelState>> Models =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -155,12 +156,11 @@ public sealed class LocalNerRecognizer : IEntityRecognizer
         var logits = output[0].AsEnumerable<float>().ToArray();
         EntityAccumulator? current = null;
 
-        for (var index = 0; index < tokens.Length; index++)
+        foreach (var word in LabelWords(tokens, chunk.Length, logits))
         {
-            var label = GetLabel(logits, index + 1, out var confidence);
-            var (prefix, entityType) = MapLabel(label);
+            var (prefix, entityType) = MapLabel(word.Label);
             if (entityType is null ||
-                confidence < _minimumConfidence ||
+                word.Confidence < _minimumConfidence ||
                 (context.Options.EntityTypes.Count > 0 && !context.Options.EntityTypes.Contains(entityType)))
             {
                 Flush(current, sourceOffset, sourceLength, detections);
@@ -168,26 +168,57 @@ public sealed class LocalNerRecognizer : IEntityRecognizer
                 continue;
             }
 
-            var token = tokens[index];
-            var start = token.Offset.Start.GetOffset(chunk.Length);
-            var end = token.Offset.End.GetOffset(chunk.Length);
             if (prefix == 'B' || current is null || current.EntityType != entityType)
             {
                 Flush(current, sourceOffset, sourceLength, detections);
-                current = new EntityAccumulator(entityType, start, end, confidence, 1);
+                current = new EntityAccumulator(entityType, word.Start, word.End, word.Confidence, 1);
             }
             else
             {
                 current = current with
                 {
-                    End = end,
-                    ConfidenceTotal = current.ConfidenceTotal + confidence,
+                    End = word.End,
+                    ConfidenceTotal = current.ConfidenceTotal + word.Confidence,
                     TokenCount = current.TokenCount + 1
                 };
             }
         }
 
         Flush(current, sourceOffset, sourceLength, detections);
+    }
+
+    /// <summary>
+    /// Groups WordPiece tokens back into the words they came from and labels each word by its first
+    /// piece, the usual "first" aggregation strategy. Continuation pieces such as <c>##OE</c> in
+    /// <c>DOE</c> are often labelled outside any entity; labelling them separately ended the entity
+    /// mid-word, which replaced <c>D</c> and left the rest of the name in the output.
+    /// </summary>
+    private static IEnumerable<WordLabel> LabelWords(EncodedToken[] tokens, int chunkLength, float[] logits)
+    {
+        WordLabel? word = null;
+        for (var index = 0; index < tokens.Length; index++)
+        {
+            var token = tokens[index];
+            var end = token.Offset.End.GetOffset(chunkLength);
+            if (word is not null && token.Value.StartsWith(ContinuationPrefix, StringComparison.Ordinal))
+            {
+                word = word with { End = end };
+                continue;
+            }
+
+            if (word is not null)
+            {
+                yield return word;
+            }
+
+            var label = GetLabel(logits, index + 1, out var confidence);
+            word = new WordLabel(token.Offset.Start.GetOffset(chunkLength), end, label, confidence);
+        }
+
+        if (word is not null)
+        {
+            yield return word;
+        }
     }
 
     private static int GetLabel(
@@ -263,6 +294,7 @@ public sealed class LocalNerRecognizer : IEntityRecognizer
             using var options = new SessionOptions
             {
                 GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+                IntraOpNumThreads = Environment.ProcessorCount,
                 LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_ERROR
             };
             return new ModelState(
@@ -283,4 +315,6 @@ public sealed class LocalNerRecognizer : IEntityRecognizer
         int End,
         double ConfidenceTotal,
         int TokenCount);
+
+    private sealed record WordLabel(int Start, int End, int Label, double Confidence);
 }

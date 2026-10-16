@@ -242,7 +242,7 @@ internal static class BuiltInRecognizers
             @"(?<![\w:])(?:[A-F0-9:.]{3,})(?![\w:])",
             0.7,
             ["ip", "address", "host"],
-            value => value.IndexOfAny(['.', ':']) >= 0 && IPAddress.TryParse(value, out _)),
+            Validators.IsIpAddressValid),
         new RegexEntityRecognizer(
             "mac-address",
             EntityType.MacAddress,
@@ -347,12 +347,57 @@ internal static class BuiltInRecognizers
             @"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
             1,
             priority: 100),
+        // Healthcare identifiers. The label is required, inside a lookbehind, so only the value is
+        // replaced and an unlabelled number such as an order or build number is left alone.
+        new RegexEntityRecognizer(
+            "medical-record-number",
+            EntityType.MedicalRecordNumber,
+            @"(?<=\b(?:MRN|medical\s+record(?:\s+(?:number|num|no\.?|#))?|patient\s*(?:id|identifier|number|no\.?|#)|encounter\s*(?:id|number|no\.?|#)|visit\s*(?:id|number|no\.?|#))\s*[:=#]?\s*)[A-Z]{0,4}-?\d{4,12}\b",
+            0.85,
+            ["patient", "mrn", "record"],
+            priority: 25),
+        // HL7 v2 person names, LAST^FIRST^MIDDLE^SUFFIX, as found in PID segments and interface logs.
+        new RegexEntityRecognizer(
+            "hl7-person-name",
+            EntityType.Person,
+            @"\b[A-Z][A-Z'\-]+\^[A-Z][A-Z'\-]*(?:\^[A-Z'\-]*){0,4}",
+            0.98,
+            ["pid", "patient", "name"],
+            priority: 25),
+        // Compact yyyyMMdd dates of birth, which the general date recognizer does not match.
+        new RegexEntityRecognizer(
+            "date-of-birth-compact",
+            EntityType.DateTime,
+            @"(?<=\b(?:DOB|D\.O\.B\.?|date\s+of\s+birth|birth\s*date)\s*[:=]?\s*)(?:18|19|20)\d{6}\b",
+            0.9,
+            ["dob", "birth"],
+            Validators.IsCompactDateValid,
+            25),
+        // HL7 v2 PID segments carry identifiers without labels, by field position: PID-3 is the
+        // patient identifier list (first component), PID-7 the date of birth.
+        new RegexEntityRecognizer(
+            "hl7-pid-patient-id",
+            EntityType.MedicalRecordNumber,
+            @"(?<=\bPID(?:\|[^|\r\n]*){2}\|)[^|^~\r\n]+",
+            0.9,
+            priority: 25),
+        new RegexEntityRecognizer(
+            "hl7-pid-birth-date",
+            EntityType.DateTime,
+            @"(?<=\bPID(?:\|[^|\r\n]*){6}\|)(?:18|19|20)\d{6}",
+            0.9,
+            validator: Validators.IsCompactDateValid,
+            priority: 25),
         new DenyListRecognizer()
     ];
 }
 
 internal static class Validators
 {
+    public static bool IsIpAddressValid(string value) =>
+        (value.Contains(':') || value.Count(character => character == '.') == 3) &&
+        IPAddress.TryParse(value, out _);
+
     public static bool IsLuhnValid(string value)
     {
         var digits = value.Where(char.IsAsciiDigit).Select(character => character - '0').ToArray();
@@ -405,6 +450,9 @@ internal static class Validators
 
         return remainder == 1;
     }
+
+    public static bool IsCompactDateValid(string value) =>
+        DateOnly.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 
     public static bool IsDateValid(string value)
     {

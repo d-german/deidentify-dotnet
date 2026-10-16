@@ -7,4 +7,16 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>Deidentify.NET contributors</Authors>
+    <Copyright>Copyright (c) 2026 Deidentify.NET contributors</Copyright>
+    <PackageProjectUrl>https://github.com/d-german/deidentify-dotnet</PackageProjectUrl>
+    <PackageTags>deidentification;phi;pii;hipaa;hl7;presidio;redaction;anonymization;ner;onnx</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
 </Project>

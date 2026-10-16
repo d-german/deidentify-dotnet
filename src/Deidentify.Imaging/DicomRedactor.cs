@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Runtime.InteropServices;
 using CSharpFunctionalExtensions;
 using FellowOakDicom;
 using FellowOakDicom.Imaging;
@@ -77,7 +76,7 @@ public sealed class DicomRedactor
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using var rendered = image.RenderImage(frame);
-                using var bitmap = CreateBitmap(rendered.AsBytes(), image.Width, image.Height);
+                using var bitmap = BgraBitmap.Create(rendered.AsBytes(), image.Width, image.Height);
                 using var sourceImage = SKImage.FromBitmap(bitmap);
                 using var sourceData = sourceImage.Encode(SKEncodedImageFormat.Png, 100);
                 var redacted = await _imageRedactor.RedactAsync(
@@ -112,13 +111,6 @@ public sealed class DicomRedactor
             return Result.Failure<DocumentRedactionResult, DeidentifyError>(
                 new DeidentifyError(DeidentifyErrorCode.UnsupportedFormat, "DICOM processing failed safely.", Operation));
         }
-    }
-
-    private static SKBitmap CreateBitmap(byte[] bgra, int width, int height)
-    {
-        var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
-        Marshal.Copy(bgra, 0, bitmap.GetPixels(), bgra.Length);
-        return bitmap;
     }
 
     private static byte[] ToRgb(SKBitmap bitmap)

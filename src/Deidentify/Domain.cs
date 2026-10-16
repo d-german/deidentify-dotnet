@@ -97,6 +97,8 @@ public sealed record EntityType
     public static EntityType MedicalLicense { get; } = new("MEDICAL_LICENSE");
     /// <summary>United States National Provider Identifier.</summary>
     public static EntityType Npi { get; } = new("US_NPI");
+    /// <summary>Labelled medical record, patient, encounter or visit identifier.</summary>
+    public static EntityType MedicalRecordNumber { get; } = new("MEDICAL_RECORD_NUMBER");
     /// <summary>Supported cryptocurrency wallet identifier.</summary>
     public static EntityType CryptocurrencyWallet { get; } = new("CRYPTO");
 

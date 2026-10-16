@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Runtime.InteropServices;
 using CSharpFunctionalExtensions;
 using Docnet.Core;
 using Docnet.Core.Models;
@@ -58,7 +57,7 @@ public sealed class PdfRedactor
                 using var page = reader.GetPageReader(pageIndex);
                 var width = page.GetPageWidth();
                 var height = page.GetPageHeight();
-                using var bitmap = CreateBitmap(page.GetImage(), width, height);
+                using var bitmap = BgraBitmap.Create(page.GetImage(), width, height);
                 using var sourceImage = SKImage.FromBitmap(bitmap);
                 using var sourceData = sourceImage.Encode(SKEncodedImageFormat.Png, 100);
                 var redacted = await _imageRedactor.RedactAsync(
@@ -93,13 +92,6 @@ public sealed class PdfRedactor
             return Result.Failure<DocumentRedactionResult, DeidentifyError>(
                 new DeidentifyError(DeidentifyErrorCode.UnsupportedFormat, "PDF processing failed safely.", Operation));
         }
-    }
-
-    private static SKBitmap CreateBitmap(byte[] bgra, int width, int height)
-    {
-        var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
-        Marshal.Copy(bgra, 0, bitmap.GetPixels(), bgra.Length);
-        return bitmap;
     }
 }
 
